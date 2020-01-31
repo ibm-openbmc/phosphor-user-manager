@@ -271,8 +271,12 @@ class Config : public Ifaces
     std::map<Id, std::unique_ptr<LDAPMapperEntry>> PrivilegeMapperList;
 
     /** @brief available privileges container */
-    std::set<std::string> privMgr = {"priv-admin", "priv-operator", "priv-user",
-                                     "priv-callback"};
+    std::set<std::string> privMgr = {
+        "priv-admin",
+        "priv-operator",
+        "priv-user",
+        "priv-noaccess",
+    };
 
     /** @brief React to InterfaceAdded signal
      *  @param[in] msg - sdbusplus message
