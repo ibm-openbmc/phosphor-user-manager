@@ -271,6 +271,7 @@ class Config : public Ifaces
         "priv-admin",
         "priv-operator",
         "priv-user",
+        "priv-oemibmserviceagent",
     };
 
     /** @brief React to InterfaceAdded signal
