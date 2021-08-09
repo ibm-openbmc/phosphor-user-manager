@@ -411,7 +411,7 @@ class UserMgr : public Ifaces
 
     /** @brief privilege manager container */
     const std::vector<std::string> privMgr = {"priv-admin", "priv-operator",
-                                              "priv-user"};
+                                              "priv-user", "priv-oemibmserviceagent"};
 
     /** @brief groups manager container */
     std::vector<std::string> groupsMgr;
