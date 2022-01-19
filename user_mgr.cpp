@@ -698,14 +698,23 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
     // If there is an error, the message is like this:
     // /usr/sbin/faillock: Error clearing the tally file for {user}:{output from
     // perror}
-    int failedAttempts = output.size() - 2;
-
-    if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
-        failedAttempts >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
+    if (output.size() < 2)
     {
         log<level::ERR>("faillock resulted in error",
                         entry("USER=%s", userName.c_str()));
+        if (output.size() >= 1)
+        {
+            log<level::ERR>("faillock error message",
+                            entry("message=%s", output[0].c_str()));
+        }
         elog<InternalFailure>();
+    }
+
+    int failedAttempts = output.size() - 2;
+    if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
+        failedAttempts >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
+    {
+        return true; // User account password is locked
     }
     return false; // User account password is un-locked
 }
