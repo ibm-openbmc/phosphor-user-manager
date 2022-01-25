@@ -672,19 +672,29 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
     // > "When        Type    Source          Valid"
     // > ${timestamp} ${type} {RHOST,TTY,SVC} {V,I}
     //
-    // If there is an error, the message is like this:
+    // If there is an error, the output is a single line like this:
     // /usr/sbin/faillock: Error clearing the tally file for {user}:{output from
     // perror}
-    int failAttempts = output.size() - 2;
-
-    if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
-        failAttempts >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
+    // Example: /usr/sbin/faillock: Error opening the tally file for admin:Not
+    // a directory
+    if (output.size() < 2)
     {
         log<level::ERR>("faillock resulted in error",
                         entry("USER=%s", userName.c_str()));
+        if (output.size() >= 1)
+        {
+            log<level::ERR>("faillock error message",
+                            entry("ERROR=%s", output[0].c_str()));
+        }
         elog<InternalFailure>();
     }
 
+    int failedAttempts = output.size() - 2;
+    if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
+        failedAttempts >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
+    {
+        return true; // User account password is locked
+    }
     return false; // User account password is un-locked
 }
 
