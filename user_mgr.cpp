@@ -667,7 +667,10 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
         elog<InternalFailure>();
     }
 
-    // Output is two header lines followed by zero or more records:
+    // Expected output:
+    // If user is not known to faillock, output is empty.
+    // If user is known to faillock, output is two header lines followed by zero
+    // or more records:
     // > {userName}:
     // > "When        Type    Source          Valid"
     // > ${timestamp} ${type} {RHOST,TTY,SVC} {V,I}
@@ -677,7 +680,13 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
     // perror}
     // Example: /usr/sbin/faillock: Error opening the tally file for admin:Not
     // a directory
-    if (output.size() < 2)
+
+    int failedAttempts = 0;
+    if (output.empty())
+    {
+        failedAttempts = 0;
+    }
+    else if (output.size() < 2)
     {
         log<level::ERR>("faillock resulted in error",
                         entry("USER=%s", userName.c_str()));
@@ -688,8 +697,10 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
         }
         elog<InternalFailure>();
     }
-
-    int failedAttempts = output.size() - 2;
+    else
+    {
+        failedAttempts = output.size() - 2;
+    }
     if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
         failedAttempts >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
     {
