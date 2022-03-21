@@ -256,11 +256,31 @@ void UserMgr::throwForInvalidGroups(const std::vector<std::string>& groupNames)
     }
 }
 
+void UserMgr::throwForRestrictedPrivilegeRole(const std::string& priv)
+{
+    if (priv == "priv-oemibmserviceagent")
+    {
+        log<level::ERR>("Restricted role");
+        elog<InternalFailure>();
+    }
+}
+
+void UserMgr::throwForRestrictedUserPrivilegeRole(const std::string& userName)
+{
+    const std::string priv = usersList[userName].get()->userPrivilege();
+    if (priv == "priv-oemibmserviceagent")
+    {
+        log<level::ERR>("User has restricted role");
+        elog<InternalFailure>();
+    }
+}
+
 void UserMgr::createUser(std::string userName,
                          std::vector<std::string> groupNames, std::string priv,
                          bool enabled)
 {
     throwForInvalidPrivilege(priv);
+    throwForRestrictedPrivilegeRole(priv);
     throwForInvalidGroups(groupNames);
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
@@ -310,6 +330,7 @@ void UserMgr::deleteUser(std::string userName)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    throwForRestrictedUserPrivilegeRole(userName);
     try
     {
         executeUserDelete(userName.c_str());
@@ -336,6 +357,7 @@ void UserMgr::renameUser(std::string userName, std::string newUserName)
     throwForUserExists(newUserName);
     throwForUserNameConstraints(newUserName,
                                 usersList[userName].get()->userGroups());
+    throwForRestrictedUserPrivilegeRole(userName);
     try
     {
         executeUserRename(userName.c_str(), newUserName.c_str());
@@ -369,10 +391,12 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
                                   const std::string& priv)
 {
     throwForInvalidPrivilege(priv);
+    throwForRestrictedPrivilegeRole(priv);
     throwForInvalidGroups(groupNames);
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    throwForRestrictedUserPrivilegeRole(userName);
     const std::vector<std::string>& oldGroupNames =
         usersList[userName].get()->userGroups();
     std::vector<std::string> groupDiff;
@@ -630,6 +654,7 @@ void UserMgr::userEnable(const std::string& userName, bool enabled)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    // Note: Allowed to enable and disable users with restricted role
     try
     {
         executeUserModifyUserEnable(userName.c_str(), enabled);
@@ -714,6 +739,7 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
 {
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
+    // Note: Allowed to unlock password of users with restricted role
     if (value == true)
     {
         return userLockedForFailedAttempt(userName);
