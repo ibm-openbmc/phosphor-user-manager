@@ -258,8 +258,7 @@ void UserMgr::throwForMaxGrpUserCount(
     }
     else
     {
-        if (usersList.size() > 0 && (usersList.size() - getIpmiUsersCount()) >=
-                                        (maxSystemUsers - ipmiMaxUsers))
+        if (usersList.size() > 0 && (usersList.size() >= maxSystemUsers))
         {
             log<level::ERR>("Non-ipmi User limit reached");
             elog<NoResource>(
