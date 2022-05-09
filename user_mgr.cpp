@@ -338,9 +338,16 @@ std::vector<std::string> UserMgr::readAllGroupsOnSystem()
     return allGroups;
 }
 
+/* Notes for restricted priv-operator role:
+ *
+ * The priv-operator role is restricted so you cannot create an operator user
+ * or change an existing user to have the operator role.  However, if there
+ * happens to be a user with the operator role, you are allowed to rename or
+ * delete that user, or change them away from the operator role.
+ */
 void UserMgr::throwForRestrictedPrivilegeRole(const std::string& priv)
 {
-    if (priv == "priv-oemibmserviceagent")
+    if ((priv == "priv-oemibmserviceagent") || (priv == "priv-operator"))
     {
         log<level::ERR>("Restricted role");
         elog<InternalFailure>();

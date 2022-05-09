@@ -961,9 +961,6 @@ TEST_F(UserMgrInTest, CreateDeleteUserSuccessForHostConsole)
     EXPECT_NO_THROW(
         UserMgr::createUser(username, {"hostconsole"}, "priv-admin", true));
     EXPECT_NO_THROW(UserMgr::deleteUser(username));
-    EXPECT_NO_THROW(
-        UserMgr::createUser(username, {"hostconsole"}, "priv-operator", true));
-    EXPECT_NO_THROW(UserMgr::deleteUser(username));
 }
 
 TEST_F(UserMgrInTest, UserEnableThrowsInternalFailureIfExecuteUserModifyFail)
