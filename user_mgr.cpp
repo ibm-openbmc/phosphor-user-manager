@@ -363,16 +363,24 @@ void UserMgr::createUser(std::string userName,
     //       - SSH port 2201 is controlled by membership in the
     //         "hypervisorconsoleaccess" group.
     //         Only the special service user should be in this group.
-    //   The special handling in this code when the user is in the "ssh" group
-    //   (represented here as sshRequested):
-    //    1. Add the user to the hostconsoleaccess Linux group.
-    //    2. Set the user's login shell (as /bin/sh).
+    //
+    //   The BMC administrator is not allowed to independently control which
+    //   users have "ssh" access.  That access is tied to the user account's
+    //   role, described here.
+    //   The special handling in this code for the "ssh" group:
+    //    1. Ignore the "ssh" value as input.
+    //    2. For admin and operator users, act as if the "ssh" group was given.
+    //         2a. Put the user into the hostconsoleaccess Linux group.
+    //         2b. Set the user's login shell to /bin/sh.
+    //       For readonly accounts, act as if the "ssh" group was not given.
+    //         2a. Do not put the user into the hostconsoleaccess Linux group
+    //             (meaning the user will not be in that group).
+    //         2b. Set the user's login shell to /bin/nologin.
     //   Note: No special code is needed to handle the special "service" user
     //         because priv-oemibmserviceagent is a restricted role which means
     //         the service agent's groups cannot be changed.
-    //   It remains up the BMC administrator to give "ssh" access to whichever
-    //   users they want (for example, to admin users).
-    bool sshRequested = removeStringFromCSV(groups, grpSsh);
+    removeStringFromCSV(groups, grpSsh);
+    bool sshRequested = (priv != "priv-user");
     if (sshRequested)
     {
         if (groups.size() != 0)
@@ -506,7 +514,8 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
 
     std::string groups = getCSVFromVector(groupNames);
     // The "ssh" phosphor privilege group is handled specially
-    bool sshRequested = removeStringFromCSV(groups, grpSsh);
+    removeStringFromCSV(groups, grpSsh);
+    bool sshRequested = (priv != "priv-user");
     if (sshRequested)
     {
         if (groups.size() != 0)
