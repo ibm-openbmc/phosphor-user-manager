@@ -60,8 +60,8 @@ static constexpr int success = 0;
 static constexpr int failure = -1;
 
 // pam modules related
-static constexpr const char* pamTally2 = "pam_tally2.so";
-static constexpr const char* pamCrackLib = "pam_cracklib.so";
+static constexpr const char* pamFaillock = "pam_faillock.so";
+static constexpr const char* pamPWQuality = "pam_pwquality.so";
 static constexpr const char* pamPWHistory = "pam_pwhistory.so";
 static constexpr const char* minPasswdLenProp = "minlen";
 static constexpr const char* remOldPasswdCount = "remember";
@@ -69,8 +69,9 @@ static constexpr const char* maxFailedAttempt = "deny";
 static constexpr const char* unlockTimeout = "unlock_time";
 static constexpr const char* defaultPamPasswdConfigFile =
     "/etc/pam.d/common-password";
-static constexpr const char* defaultPamAuthConfigFile =
-    "/etc/pam.d/common-auth";
+static constexpr const char* faillockConfigFile = "/etc/security/faillock.conf";
+static constexpr const char* pwQualityConfigFile =
+    "/etc/security/pwquality.conf";
 
 // Object Manager related
 static constexpr const char* ldapMgrObjBasePath =
@@ -218,8 +219,7 @@ void UserMgr::throwForMaxGrpUserCount(
     }
     else
     {
-        if (usersList.size() > 0 && (usersList.size() - getIpmiUsersCount()) >=
-                                        (maxSystemUsers - ipmiMaxUsers))
+        if (usersList.size() > 0 && (usersList.size() >= maxSystemUsers))
         {
             log<level::ERR>("Non-ipmi User limit reached");
             elog<NoResource>(
@@ -255,11 +255,38 @@ void UserMgr::throwForInvalidGroups(const std::vector<std::string>& groupNames)
     }
 }
 
+/* Notes for restricted priv-operator role:
+ *
+ * The priv-operator role is restricted so you cannot create an operator user
+ * or change an existing user to have the operator role.  However, if there
+ * happens to be a user with the operator role, you are allowed to rename or
+ * delete that user, or change them away from the operator role.
+ */
+void UserMgr::throwForRestrictedPrivilegeRole(const std::string& priv)
+{
+    if ((priv == "priv-oemibmserviceagent") || (priv == "priv-operator"))
+    {
+        log<level::ERR>("Restricted role");
+        elog<InternalFailure>();
+    }
+}
+
+void UserMgr::throwForRestrictedUserPrivilegeRole(const std::string& userName)
+{
+    const std::string priv = usersList[userName].get()->userPrivilege();
+    if (priv == "priv-oemibmserviceagent")
+    {
+        log<level::ERR>("User has restricted role");
+        elog<InternalFailure>();
+    }
+}
+
 void UserMgr::createUser(std::string userName,
                          std::vector<std::string> groupNames, std::string priv,
                          bool enabled)
 {
     throwForInvalidPrivilege(priv);
+    throwForRestrictedPrivilegeRole(priv);
     throwForInvalidGroups(groupNames);
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
@@ -268,7 +295,53 @@ void UserMgr::createUser(std::string userName,
     throwForMaxGrpUserCount(groupNames);
 
     std::string groups = getCSVFromVector(groupNames);
+
+    // The "ssh" phosphor-privilege group controls access to the host console
+    // via SSH port 2200 and has a special implementation.
+    // In the OpenBMC community project:
+    //   A. It allows access to the BMC's SSH interfaces
+    //       - SSH port 22 reaches the BMC's command shell.
+    //       - SSH port 2200 reaches the host console.
+    //   B. It is enforced by two mechanisms:
+    //       1. The SSH dropbear server command uses the -G priv-admin argument
+    //          to restrict SSH access to users who are in the priv-admin Linux
+    //          group.
+    //       2. The Linux user's login shell was set to /bin/sh (when "ssh" was
+    //          specified) or /bin/nologin (when "ssh" is not specified).
+    //          Having loginShell=/bin/sh is required to be able to get in
+    //          through the SSH interface.  The condition (loginShell==/bin/sh)
+    //          is equivalent to being in the "ssh" privilege-group.
+    //       Note there is no "ssh" Linux group.
+    // For p10bmc:
+    //   A. Additionally:
+    //       - SSH port 2201 to reaches the hypervisor console (PHYP).
+    //   B. We created three new Linux groups to control access to the SSH
+    //         destinations:
+    //       - SSH port 22 is controlled by membership in "bmcshellaccess".
+    //         Only the special service user should be in this group.
+    //       - SSH port 2200 is controlled by membership in "hostconsoleaccess"
+    //         All users (including the service user) should be in this group.
+    //       - SSH port 2201 is controlled by membership in the
+    //         "hypervisorconsoleaccess" group.
+    //         Only the special service user should be in this group.
+    //   The special handling in this code when the user is in the "ssh" group
+    //   (represented here as sshRequested):
+    //    1. Add the user to the hostconsoleaccess Linux group.
+    //    2. Set the user's login shell (as /bin/sh).
+    //   Note: No special code is needed to handle the special "service" user
+    //         because priv-oemibmserviceagent is a restricted role which means
+    //         the service agent's groups cannot be changed.
+    //   It remains up the BMC administrator to give "ssh" access to whichever
+    //   users they want (for example, to admin users).
     bool sshRequested = removeStringFromCSV(groups, grpSsh);
+    if (sshRequested)
+    {
+        if (groups.size() != 0)
+        {
+            groups += ",";
+        }
+        groups += "hostconsoleaccess";
+    }
 
     // treat privilege as a group - This is to avoid using different file to
     // store the same.
@@ -309,6 +382,7 @@ void UserMgr::deleteUser(std::string userName)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    throwForRestrictedUserPrivilegeRole(userName);
     try
     {
         executeUserDelete(userName.c_str());
@@ -335,6 +409,7 @@ void UserMgr::renameUser(std::string userName, std::string newUserName)
     throwForUserExists(newUserName);
     throwForUserNameConstraints(newUserName,
                                 usersList[userName].get()->userGroups());
+    throwForRestrictedUserPrivilegeRole(userName);
     try
     {
         executeUserRename(userName.c_str(), newUserName.c_str());
@@ -368,10 +443,12 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
                                   const std::string& priv)
 {
     throwForInvalidPrivilege(priv);
+    throwForRestrictedPrivilegeRole(priv);
     throwForInvalidGroups(groupNames);
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    throwForRestrictedUserPrivilegeRole(userName);
     const std::vector<std::string>& oldGroupNames =
         usersList[userName].get()->userGroups();
     std::vector<std::string> groupDiff;
@@ -387,7 +464,16 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
     }
 
     std::string groups = getCSVFromVector(groupNames);
+    // The "ssh" phosphor privilege group is handled specially
     bool sshRequested = removeStringFromCSV(groups, grpSsh);
+    if (sshRequested)
+    {
+        if (groups.size() != 0)
+        {
+            groups += ",";
+        }
+        groups += "hostconsoleaccess";
+    }
 
     // treat privilege as a group - This is to avoid using different file to
     // store the same.
@@ -433,7 +519,7 @@ uint8_t UserMgr::minPasswordLength(uint8_t value)
             Argument::ARGUMENT_NAME("minPasswordLength"),
             Argument::ARGUMENT_VALUE(std::to_string(value).c_str()));
     }
-    if (setPamModuleArgValue(pamCrackLib, minPasswdLenProp,
+    if (setPamModuleArgValue(pamPWQuality, minPasswdLenProp,
                              std::to_string(value)) != success)
     {
         log<level::ERR>("Unable to set minPasswordLength");
@@ -463,7 +549,7 @@ uint16_t UserMgr::maxLoginAttemptBeforeLockout(uint16_t value)
     {
         return value;
     }
-    if (setPamModuleArgValue(pamTally2, maxFailedAttempt,
+    if (setPamModuleArgValue(pamFaillock, maxFailedAttempt,
                              std::to_string(value)) != success)
     {
         log<level::ERR>("Unable to set maxLoginAttemptBeforeLockout");
@@ -478,8 +564,8 @@ uint32_t UserMgr::accountUnlockTimeout(uint32_t value)
     {
         return value;
     }
-    if (setPamModuleArgValue(pamTally2, unlockTimeout, std::to_string(value)) !=
-        success)
+    if (setPamModuleArgValue(pamFaillock, unlockTimeout,
+                             std::to_string(value)) != success)
     {
         log<level::ERR>("Unable to set accountUnlockTimeout");
         elog<InternalFailure>();
@@ -492,9 +578,16 @@ int UserMgr::getPamModuleArgValue(const std::string& moduleName,
                                   std::string& argValue)
 {
     std::string fileName;
-    if (moduleName == pamTally2)
+    bool simpleConfigFile = false;
+    if (moduleName == pamFaillock)
     {
-        fileName = pamAuthConfigFile;
+        fileName = faillockConfigFile;
+        simpleConfigFile = true;
+    }
+    else if (moduleName == pamPWQuality)
+    {
+        fileName = pwQualityConfigFile;
+        simpleConfigFile = true;
     }
     else
     {
@@ -523,7 +616,7 @@ int UserMgr::getPamModuleArgValue(const std::string& moduleName,
             // skip comments after meaningful section and process those
             line = line.substr(0, startPos);
         }
-        if (line.find(moduleName) != std::string::npos)
+        if (simpleConfigFile || (line.find(moduleName) != std::string::npos))
         {
             if ((startPos = line.find(argSearch)) != std::string::npos)
             {
@@ -545,9 +638,16 @@ int UserMgr::setPamModuleArgValue(const std::string& moduleName,
                                   const std::string& argValue)
 {
     std::string fileName;
-    if (moduleName == pamTally2)
+    bool simpleConfigFile = false;
+    if (moduleName == pamFaillock)
     {
-        fileName = pamAuthConfigFile;
+        fileName = faillockConfigFile;
+        simpleConfigFile = true;
+    }
+    else if (moduleName == pamPWQuality)
+    {
+        fileName = pwQualityConfigFile;
+        simpleConfigFile = true;
     }
     else
     {
@@ -580,7 +680,7 @@ int UserMgr::setPamModuleArgValue(const std::string& moduleName,
             // skip comments after meaningful section and process those
             line = line.substr(0, startPos);
         }
-        if (line.find(moduleName) != std::string::npos)
+        if (simpleConfigFile || (line.find(moduleName) != std::string::npos))
         {
             if ((startPos = line.find(argSearch)) != std::string::npos)
             {
@@ -615,6 +715,7 @@ void UserMgr::userEnable(const std::string& userName, bool enabled)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    // Note: Allowed to enable and disable users with restricted role
     try
     {
         executeUserModifyUserEnable(userName.c_str(), enabled);
@@ -631,18 +732,6 @@ void UserMgr::userEnable(const std::string& userName, bool enabled)
     usersList[userName]->setUserEnabled(enabled);
     return;
 }
-
-/**
- * pam_tally2 app will provide the user failure count and failure status
- * in second line of output with words position [0] - user name,
- * [1] - failure count, [2] - latest failure date, [3] - latest failure time
- * [4] - failure app
- **/
-
-static constexpr size_t t2FailCntIdx = 1;
-static constexpr size_t t2FailDateIdx = 2;
-static constexpr size_t t2FailTimeIdx = 3;
-static constexpr size_t t2OutputIndex = 1;
 
 bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
 {
@@ -664,63 +753,46 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
         elog<InternalFailure>();
     }
 
-    std::vector<std::string> splitWords;
-    boost::algorithm::split(splitWords, output[t2OutputIndex],
-                            boost::algorithm::is_any_of("\t "),
-                            boost::token_compress_on);
+    // Expected output:
+    // If user is not known to faillock, output is empty.
+    // If user is known to faillock, output is two header lines followed by zero
+    // or more records:
+    // > {userName}:
+    // > "When        Type    Source          Valid"
+    // > ${timestamp} ${type} {RHOST,TTY,SVC} {V,I}
+    //
+    // If there is an error, the output is a single line like this:
+    // /usr/sbin/faillock: Error clearing the tally file for {user}:{output from
+    // perror}
+    // Example: /usr/sbin/faillock: Error opening the tally file for admin:Not
+    // a directory
 
-    uint16_t failAttempts = 0;
-    try
+    int failedAttempts = 0;
+    if (output.empty())
     {
-        unsigned long tmp = std::stoul(splitWords[t2FailCntIdx], nullptr);
-        if (tmp > std::numeric_limits<decltype(failAttempts)>::max())
+        failedAttempts = 0;
+    }
+    else if (output.size() < 2)
+    {
+        log<level::ERR>("faillock resulted in error",
+                        entry("USER=%s", userName.c_str()));
+        if (output.size() >= 1)
         {
-            throw std::out_of_range("Out of range");
+            log<level::ERR>("faillock error message",
+                            entry("ERROR=%s", output[0].c_str()));
         }
-        failAttempts = static_cast<decltype(failAttempts)>(tmp);
-    }
-    catch (const std::exception& e)
-    {
-        log<level::ERR>("Exception for userLockedForFailedAttempt",
-                        entry("WHAT=%s", e.what()));
         elog<InternalFailure>();
     }
-
-    if (failAttempts < AccountPolicyIface::maxLoginAttemptBeforeLockout())
+    else
     {
-        return false;
+        failedAttempts = output.size() - 2;
     }
-
-    // When failedAttempts is not 0, Latest failure date/time should be
-    // available
-    if (splitWords.size() < 4)
+    if (AccountPolicyIface::maxLoginAttemptBeforeLockout() != 0 &&
+        failedAttempts >= AccountPolicyIface::maxLoginAttemptBeforeLockout())
     {
-        log<level::ERR>("Unable to read latest failure date/time");
-        elog<InternalFailure>();
+        return true; // User account password is locked
     }
-
-    const std::string failDateTime =
-        splitWords[t2FailDateIdx] + ' ' + splitWords[t2FailTimeIdx];
-
-    // NOTE: Cannot use std::get_time() here as the implementation of %y in
-    // libstdc++ does not match POSIX strptime() before gcc 12.1.0
-    // https://gcc.gnu.org/git/?p=gcc.git;a=commit;h=a8d3c98746098e2784be7144c1ccc9fcc34a0888
-    std::tm tmStruct = {};
-    if (!strptime(failDateTime.c_str(), "%D %H:%M:%S", &tmStruct))
-    {
-        log<level::ERR>("Failed to parse latest failure date/time");
-        elog<InternalFailure>();
-    }
-
-    time_t failTimestamp = std::mktime(&tmStruct);
-    if (failTimestamp +
-            static_cast<time_t>(AccountPolicyIface::accountUnlockTimeout()) <=
-        std::time(NULL))
-    {
-        return false;
-    }
-
-    return true;
+    return false; // User account password is un-locked
 }
 
 bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
@@ -728,21 +800,23 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
 {
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
+    // Note: Allowed to unlock password of users with restricted role
     if (value == true)
     {
         return userLockedForFailedAttempt(userName);
     }
 
-    try
+    std::vector<std::string> output;
+    output =
+        executeCmd("/usr/sbin/faillock", "--user", userName.c_str(), "--reset");
+
+    if (!output.empty() && output[0].find("Error") != std::string::npos)
     {
-        executeCmd("/usr/sbin/pam_tally2", "-u", userName.c_str(), "-r");
-    }
-    catch (const InternalFailure& e)
-    {
-        log<level::ERR>("Unable to reset login failure counter");
+        log<level::ERR>("faillock reset resulted in error",
+                        entry("USER=%s", userName.c_str()),
+                        entry("OUTPUT=%s", output[0].c_str()));
         elog<InternalFailure>();
     }
-
     return userLockedForFailedAttempt(userName);
 }
 
@@ -1165,7 +1239,8 @@ void UserMgr::initializeAccountPolicy()
     std::string valueStr;
     auto value = minPasswdLength;
     unsigned long tmp = 0;
-    if (getPamModuleArgValue(pamCrackLib, minPasswdLenProp, valueStr) !=
+
+    if (getPamModuleArgValue(pamPWQuality, minPasswdLenProp, valueStr) !=
         success)
     {
         AccountPolicyIface::minPasswordLength(minPasswdLength);
@@ -1216,7 +1291,8 @@ void UserMgr::initializeAccountPolicy()
         AccountPolicyIface::rememberOldPasswordTimes(value);
     }
     valueStr.clear();
-    if (getPamModuleArgValue(pamTally2, maxFailedAttempt, valueStr) != success)
+    if (getPamModuleArgValue(pamFaillock, maxFailedAttempt, valueStr) !=
+        success)
     {
         AccountPolicyIface::maxLoginAttemptBeforeLockout(0);
     }
@@ -1234,14 +1310,14 @@ void UserMgr::initializeAccountPolicy()
         }
         catch (const std::exception& e)
         {
-            log<level::ERR>("Exception for MaxLoginAttemptBeforLockout",
+            log<level::ERR>("Exception for MaxLoginAttemptBeforeLockout",
                             entry("WHAT=%s", e.what()));
             throw;
         }
         AccountPolicyIface::maxLoginAttemptBeforeLockout(value16);
     }
     valueStr.clear();
-    if (getPamModuleArgValue(pamTally2, unlockTimeout, valueStr) != success)
+    if (getPamModuleArgValue(pamFaillock, unlockTimeout, valueStr) != success)
     {
         AccountPolicyIface::accountUnlockTimeout(0);
     }
@@ -1334,7 +1410,7 @@ void UserMgr::initUserObjects(void)
 UserMgr::UserMgr(sdbusplus::bus_t& bus, const char* path) :
     Ifaces(bus, path, Ifaces::action::defer_emit), bus(bus), path(path),
     pamPasswdConfigFile(defaultPamPasswdConfigFile),
-    pamAuthConfigFile(defaultPamAuthConfigFile)
+    pamAuthConfigFile(faillockConfigFile)
 {
     UserMgrIface::allPrivileges(privMgr);
     std::sort(groupsMgr.begin(), groupsMgr.end());
@@ -1386,7 +1462,10 @@ void UserMgr::executeUserModifyUserEnable(const char* userName, bool enabled)
 
 std::vector<std::string> UserMgr::getFailedAttempt(const char* userName)
 {
-    return executeCmd("/usr/sbin/pam_tally2", "-u", userName);
+    // Emulate the behavior of pam_faillock.so authsucc: get the number of
+    // failed attempts and compare with the deny= value
+    // See https://github.com/linux-pam/linux-pam/issues/327
+    return executeCmd("/usr/sbin/faillock", "--user", userName);
 }
 
 void UserMgr::createGroup(std::string /*groupName*/)

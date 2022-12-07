@@ -342,6 +342,21 @@ class UserMgr : public Ifaces
      */
     void throwForInvalidGroups(const std::vector<std::string>& groupName);
 
+    /** @brief check for a RestrictedRole
+     *  method to check if the role is restricted, and throw if restricted
+     *
+     *  @param[in] priv - privilege role specified
+     */
+    void throwForRestrictedPrivilegeRole(const std::string& priv);
+
+    /** @brief check if a user has a RestrictedRole
+     *  method to check if the user's role is restricted, and throw if
+     *  restricted
+     *
+     *  @param[in] userName - the name of the user
+     */
+    void throwForRestrictedUserPrivilegeRole(const std::string& userName);
+
     void initializeAccountPolicy();
 
   private:
@@ -353,7 +368,7 @@ class UserMgr : public Ifaces
 
     /** @brief privilege manager container */
     std::vector<std::string> privMgr = {"priv-admin", "priv-operator",
-                                        "priv-user"};
+                                        "priv-user", "priv-oemibmserviceagent"};
 
     /** @brief groups manager container */
     std::vector<std::string> groupsMgr = {"web", "redfish", "ipmi", "ssh"};

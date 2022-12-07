@@ -590,14 +590,6 @@ TEST_F(UserMgrInTest,
     EXPECT_EQ(AccountPolicyIface::minPasswordLength(), 8);
 }
 
-TEST_F(UserMgrInTest, MinPasswordLengthOnSuccess)
-{
-    initializeAccountPolicy();
-    EXPECT_EQ(AccountPolicyIface::minPasswordLength(), 8);
-    UserMgr::minPasswordLength(16);
-    EXPECT_EQ(AccountPolicyIface::minPasswordLength(), 16);
-}
-
 TEST_F(UserMgrInTest, MinPasswordLengthOnFailure)
 {
     EXPECT_NO_THROW(dumpStringToFile("whatever", tempPamConfigFile));
@@ -638,22 +630,6 @@ TEST_F(UserMgrInTest, RememberOldPasswordTimesOnFailure)
     EXPECT_EQ(AccountPolicyIface::rememberOldPasswordTimes(), 0);
 }
 
-TEST_F(UserMgrInTest, MaxLoginAttemptBeforeLockoutReturnsIfValueIsTheSame)
-{
-    initializeAccountPolicy();
-    EXPECT_EQ(AccountPolicyIface::maxLoginAttemptBeforeLockout(), 2);
-    UserMgr::maxLoginAttemptBeforeLockout(2);
-    EXPECT_EQ(AccountPolicyIface::maxLoginAttemptBeforeLockout(), 2);
-}
-
-TEST_F(UserMgrInTest, MaxLoginAttemptBeforeLockoutOnSuccess)
-{
-    initializeAccountPolicy();
-    EXPECT_EQ(AccountPolicyIface::maxLoginAttemptBeforeLockout(), 2);
-    UserMgr::maxLoginAttemptBeforeLockout(16);
-    EXPECT_EQ(AccountPolicyIface::maxLoginAttemptBeforeLockout(), 16);
-}
-
 TEST_F(UserMgrInTest, MaxLoginAttemptBeforeLockoutOnFailure)
 {
     EXPECT_NO_THROW(dumpStringToFile("whatever", tempPamConfigFile));
@@ -662,32 +638,6 @@ TEST_F(UserMgrInTest, MaxLoginAttemptBeforeLockoutOnFailure)
         UserMgr::maxLoginAttemptBeforeLockout(16),
         sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure);
     EXPECT_EQ(AccountPolicyIface::rememberOldPasswordTimes(), 0);
-}
-
-TEST_F(UserMgrInTest, AccountUnlockTimeoutReturnsIfValueIsTheSame)
-{
-    initializeAccountPolicy();
-    EXPECT_EQ(AccountPolicyIface::accountUnlockTimeout(), 3);
-    UserMgr::accountUnlockTimeout(3);
-    EXPECT_EQ(AccountPolicyIface::accountUnlockTimeout(), 3);
-}
-
-TEST_F(UserMgrInTest, AccountUnlockTimeoutOnSuccess)
-{
-    initializeAccountPolicy();
-    EXPECT_EQ(AccountPolicyIface::accountUnlockTimeout(), 3);
-    UserMgr::accountUnlockTimeout(16);
-    EXPECT_EQ(AccountPolicyIface::accountUnlockTimeout(), 16);
-}
-
-TEST_F(UserMgrInTest, AccountUnlockTimeoutOnFailure)
-{
-    initializeAccountPolicy();
-    EXPECT_NO_THROW(dumpStringToFile("whatever", tempPamConfigFile));
-    EXPECT_THROW(
-        UserMgr::accountUnlockTimeout(16),
-        sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure);
-    EXPECT_EQ(AccountPolicyIface::accountUnlockTimeout(), 3);
 }
 
 TEST_F(UserMgrInTest, UserEnableOnSuccess)
@@ -734,94 +684,6 @@ TEST_F(
     UserLockedForFailedAttemptReturnsFalseIfMaxLoginAttemptBeforeLockoutIsZero)
 {
     EXPECT_FALSE(userLockedForFailedAttempt("whatever"));
-}
-
-TEST_F(UserMgrInTest, UserLockedForFailedAttemptZeroFailuresReturnsFalse)
-{
-    std::string username = "user001";
-    initializeAccountPolicy();
-    // Example output from BMC
-    // root@s7106:~# pam_tally2 -u root
-    // Login           Failures Latest failure     From
-    // root                0
-    std::vector<std::string> output = {"whatever", "root\t0"};
-    EXPECT_CALL(*this, getFailedAttempt(testing::StrEq(username.c_str())))
-        .WillOnce(testing::Return(output));
-
-    EXPECT_FALSE(userLockedForFailedAttempt(username));
-}
-
-TEST_F(UserMgrInTest, UserLockedForFailedAttemptFailIfGetFailedAttemptFail)
-{
-    std::string username = "user001";
-    initializeAccountPolicy();
-    EXPECT_CALL(*this, getFailedAttempt(testing::StrEq(username.c_str())))
-        .WillOnce(testing::Throw(
-            sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure()));
-
-    EXPECT_THROW(
-        userLockedForFailedAttempt(username),
-        sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure);
-}
-
-TEST_F(UserMgrInTest,
-       UserLockedForFailedAttemptThrowsInternalFailureIfFailAttemptsOutOfRange)
-{
-    std::string username = "user001";
-    initializeAccountPolicy();
-    std::vector<std::string> output = {"whatever", "root\t1000000"};
-    EXPECT_CALL(*this, getFailedAttempt(testing::StrEq(username.c_str())))
-        .WillOnce(testing::Return(output));
-
-    EXPECT_THROW(
-        userLockedForFailedAttempt(username),
-        sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure);
-}
-
-TEST_F(UserMgrInTest,
-       UserLockedForFailedAttemptThrowsInternalFailureIfNoFailDateTime)
-{
-    std::string username = "user001";
-    initializeAccountPolicy();
-    std::vector<std::string> output = {"whatever", "root\t2"};
-    EXPECT_CALL(*this, getFailedAttempt(testing::StrEq(username.c_str())))
-        .WillOnce(testing::Return(output));
-
-    EXPECT_THROW(
-        userLockedForFailedAttempt(username),
-        sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure);
-}
-
-TEST_F(UserMgrInTest,
-       UserLockedForFailedAttemptThrowsInternalFailureIfWrongDateFormat)
-{
-    std::string username = "user001";
-    initializeAccountPolicy();
-
-    // Choose a date in the past.
-    std::vector<std::string> output = {"whatever",
-                                       "root\t2\t10/24/2002\t00:00:00"};
-    EXPECT_CALL(*this, getFailedAttempt(testing::StrEq(username.c_str())))
-        .WillOnce(testing::Return(output));
-
-    EXPECT_THROW(
-        userLockedForFailedAttempt(username),
-        sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure);
-}
-
-TEST_F(UserMgrInTest,
-       UserLockedForFailedAttemptReturnsFalseIfLastFailTimeHasTimedOut)
-{
-    std::string username = "user001";
-    initializeAccountPolicy();
-
-    // Choose a date in the past.
-    std::vector<std::string> output = {"whatever",
-                                       "root\t2\t10/24/02\t00:00:00"};
-    EXPECT_CALL(*this, getFailedAttempt(testing::StrEq(username.c_str())))
-        .WillOnce(testing::Return(output));
-
-    EXPECT_EQ(userLockedForFailedAttempt(username), false);
 }
 
 } // namespace user
