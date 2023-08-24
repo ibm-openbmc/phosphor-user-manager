@@ -386,6 +386,9 @@ void UserMgr::deleteUser(std::string userName)
     try
     {
         executeUserDelete(userName.c_str());
+
+        // Clear user fail records
+        executeUserClearFailRecords(userName.c_str());
     }
     catch (const InternalFailure& e)
     {
@@ -801,12 +804,12 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     // Note: Allowed to unlock password of users with restricted role
+    std::vector<std::string> output;
     if (value == true)
     {
         return userLockedForFailedAttempt(userName);
     }
 
-    std::vector<std::string> output;
     output =
         executeCmd("/usr/sbin/faillock", "--user", userName.c_str(), "--reset");
 
@@ -1435,6 +1438,11 @@ void UserMgr::executeUserAdd(const char* userName, const char* groups,
 void UserMgr::executeUserDelete(const char* userName)
 {
     executeCmd("/usr/sbin/userdel", userName, "-r");
+}
+
+void UserMgr::executeUserClearFailRecords(const char* userName)
+{
+    executeCmd("/usr/sbin/faillock", "--user", userName, "--reset");
 }
 
 void UserMgr::executeUserRename(const char* userName, const char* newUserName)
