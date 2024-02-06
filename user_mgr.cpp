@@ -385,10 +385,10 @@ void UserMgr::deleteUser(std::string userName)
     throwForRestrictedUserPrivilegeRole(userName);
     try
     {
-        executeUserDelete(userName.c_str());
-
         // Clear user fail records
         executeUserClearFailRecords(userName.c_str());
+
+        executeUserDelete(userName.c_str());
     }
     catch (const InternalFailure& e)
     {
@@ -795,7 +795,7 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
     {
         return true; // User account password is locked
     }
-    return false; // User account password is un-locked
+    return false;    // User account password is un-locked
 }
 
 bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
