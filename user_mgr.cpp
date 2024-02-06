@@ -795,7 +795,7 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName)
     {
         return true; // User account password is locked
     }
-    return false; // User account password is un-locked
+    return false;    // User account password is un-locked
 }
 
 bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
