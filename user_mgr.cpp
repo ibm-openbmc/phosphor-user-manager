@@ -400,10 +400,12 @@ void UserMgr::createUser(std::string userName,
     //       - SSH port 2201 to reaches the hypervisor console (PHYP).
     //   B. We created three new Linux groups to control access to the SSH
     //         destinations:
-    //       - SSH port 22 is controlled by membership in "bmcshellaccess".
+    //       - SSH port 22 is controlled by membership in "shellaccess".
     //         Only the special service user should be in this group.
-    //       - SSH port 2200 is controlled by membership in "hostconsoleaccess"
+    //         (This was called bmcshellaccess in previous releases.)
+    //       - SSH port 2200 is controlled by membership in "hostconsole"
     //         All users (including the service user) should be in this group.
+    //         (This was called hostconsoleaccess before P11.)
     //       - SSH port 2201 is controlled by membership in the
     //         "hypervisorconsoleaccess" group.
     //         Only the special service user should be in this group.
@@ -423,7 +425,7 @@ void UserMgr::createUser(std::string userName,
         {
             groups += ",";
         }
-        groups += "hostconsoleaccess";
+        groups += "hostconsole";
     }
 
     // treat privilege as a group - This is to avoid using different file to
@@ -618,7 +620,7 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
         {
             groups += ",";
         }
-        groups += "hostconsoleaccess";
+        groups += "hostconsole";
     }
 
     // treat privilege as a group - This is to avoid using different file to
