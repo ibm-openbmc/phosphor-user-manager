@@ -273,9 +273,6 @@ class UserMgr : public Ifaces
     MultiFactorAuthType enabled(MultiFactorAuthType value,
                                 bool skipSignal) override;
 
-    virtual MultiFactorAuthType enabled(MultiFactorAuthType value,
-                                        bool skipSignal) override;
-
     static std::vector<std::string> readAllGroupsOnSystem();
 
   protected:
