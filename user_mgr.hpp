@@ -273,7 +273,7 @@ class UserMgr : public Ifaces
     }
     MultiFactorAuthType enabled(MultiFactorAuthType value,
                                 bool skipSignal) override;
-
+    bool isGenerateSecretKeyRequired(const std::string& userName);
     static std::vector<std::string> readAllGroupsOnSystem();
     void load();
 

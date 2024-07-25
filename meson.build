@@ -90,10 +90,11 @@ user_manager_src = [
     'user_mgr.cpp',
     'users.cpp'
 ]
-pam = cpp.find_library('pam', required: true)
+
+pam_dep = dependency('pam', required: true)
 user_manager_deps = [
      boost_dep,
-     pam,
+     pam_dep,
      sdbusplus_dep,
      phosphor_logging_dep,
      phosphor_dbus_interfaces_dep

@@ -94,8 +94,13 @@ inline int pamFunctionConversation(int numMsg, const struct pam_message** msgs,
     PasswordData* appPass = reinterpret_cast<PasswordData*>(appdataPtr);
     auto msgCount = static_cast<size_t>(numMsg);
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays)
-    auto responseArrPtr = std::make_unique<pam_response[]>(msgCount);
-    auto responses = std::span(responseArrPtr.get(), msgCount);
+    // auto responseArrPtr = std::make_unique<pam_response[]>(msgCount);
+    auto pamResponseDeleter = [](pam_response* ptr) { free(ptr); };
+
+    std::unique_ptr<pam_response[], decltype(pamResponseDeleter)> responses(
+        static_cast<pam_response*>(calloc(msgCount, sizeof(pam_response))),
+        pamResponseDeleter);
+
     auto messagePtrs = std::span(msgs, msgCount);
     for (size_t i = 0; i < msgCount; ++i)
     {
@@ -112,7 +117,7 @@ inline int pamFunctionConversation(int numMsg, const struct pam_message** msgs,
         }
     }
 
-    *resp = responseArrPtr.release();
+    *resp = responses.release();
     return PAM_SUCCESS;
 }
 
