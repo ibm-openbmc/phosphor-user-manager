@@ -974,8 +974,7 @@ bool UserMgr::userPasswordExpired(const std::string& userName)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 
-    struct spwd spwd
-    {};
+    struct spwd spwd{};
     struct spwd* spwdPtr = nullptr;
     auto buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (buflen < -1)
@@ -1652,6 +1651,10 @@ std::vector<std::string> UserMgr::getFailedAttempt(const char* userName)
 
 MultiFactorAuthType UserMgr::enabled(MultiFactorAuthType value, bool skipSignal)
 {
+    if (value == enabled())
+    {
+        return value;
+    }
     switch (value)
     {
         case MultiFactorAuthType::None:
