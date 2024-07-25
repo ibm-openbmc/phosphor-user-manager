@@ -28,6 +28,7 @@
 #include <xyz/openbmc_project/User/AccountPolicy/server.hpp>
 #include <xyz/openbmc_project/User/Manager/server.hpp>
 #include <xyz/openbmc_project/User/MultiFactorAuthConfiguration/server.hpp>
+#include <xyz/openbmc_project/User/TOTPAuthenticatorManager/server.hpp>
 
 #include <span>
 #include <string>
@@ -55,8 +56,12 @@ using AccountPolicyIface =
 using MultiFactorAuthConfigurationIface =
     sdbusplus::xyz::openbmc_project::User::server::MultiFactorAuthConfiguration;
 
+using TOTPAuthenticatorManagerIface =
+    sdbusplus::xyz::openbmc_project::User::server::TOTPAuthenticatorManager;
+
 using Ifaces = sdbusplus::server::object_t<UserMgrIface, AccountPolicyIface,
-                                           MultiFactorAuthConfigurationIface>;
+                                           MultiFactorAuthConfigurationIface,
+                                           TOTPAuthenticatorManagerIface>;
 
 using Privilege = std::string;
 using GroupList = std::vector<std::string>;
@@ -273,7 +278,7 @@ class UserMgr : public Ifaces
     }
     MultiFactorAuthType enabled(MultiFactorAuthType value,
                                 bool skipSignal) override;
-    bool isGenerateSecretKeyRequired(const std::string& userName);
+    bool isGenerateSecretKeyRequired(std::string userName) override;
     static std::vector<std::string> readAllGroupsOnSystem();
     void load();
 

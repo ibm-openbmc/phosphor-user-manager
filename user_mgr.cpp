@@ -1718,7 +1718,7 @@ MultiFactorAuthType UserMgr::enabled(MultiFactorAuthType value, bool skipSignal)
     }
     return MultiFactorAuthConfigurationIface::enabled(value, skipSignal);
 }
-bool UserMgr::isGenerateSecretKeyRequired(const std::string& userName)
+bool UserMgr::isGenerateSecretKeyRequired(std::string userName)
 {
     if (usersList.contains(userName))
     {
