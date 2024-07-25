@@ -217,9 +217,19 @@ bool changeFileOwnership(const std::string& filePath,
     }
     return true;
 }
-
+bool Users::checkMfaStatus()
+{
+    return (manager.enabled() != MultiFactorAuthType::None &&
+            Interfaces::bypassedProtocol() !=
+                MultiFactorAuthType::GoogleAuthenticator);
+}
 std::string Users::createSecretKey()
 {
+    if (!checkMfaStatus())
+    {
+        elog<InternalFailure>();
+        return "";
+    }
     if (!std::filesystem::exists(authAppPath))
     {
         lg2::error("No authenticator app found at {PATH}", "PATH", authAppPath);
@@ -346,6 +356,10 @@ void Users::enableMultiFactorAuth(MultiFactorAuthType type, bool value)
     {
         iter->handler(*this, value);
     }
+}
+bool Users::isGenerateSecretKeyRequired()
+{
+    return checkMfaStatus() && !secretKeyIsValid();
 }
 
 } // namespace user
