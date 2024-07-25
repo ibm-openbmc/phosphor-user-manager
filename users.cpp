@@ -226,10 +226,6 @@ bool Users::checkMfaStatus() const
 }
 std::string Users::createSecretKey()
 {
-    if (!checkMfaStatus())
-    {
-        throw UnsupportedRequest();
-    }
     if (!std::filesystem::exists(authAppPath))
     {
         lg2::error("No authenticator app found at {PATH}", "PATH", authAppPath);
@@ -251,20 +247,20 @@ std::string Users::createSecretKey()
     {
         lg2::error("Failed to create secret key for user {USER}", "USER",
                    userName);
-        elog<InternalFailure>();
+        throw UnsupportedRequest();
     }
     std::ifstream file(path);
     if (!file.is_open())
     {
         lg2::error("Failed to open secret key file {PATH}", "PATH", path);
-        elog<InternalFailure>();
+        throw UnsupportedRequest();
     }
     std::string secret;
     std::getline(file, secret);
     file.close();
     if (!changeFileOwnership(path, userName))
     {
-        elog<InternalFailure>();
+        throw UnsupportedRequest();
     }
     return secret;
 }
@@ -272,17 +268,22 @@ bool Users::verifyOTP(std::string otp)
 {
     if (Totp::verify(getUserName(), otp) == PAM_SUCCESS)
     {
-        try
+        // If MFA is enabled for the user register the secret key
+        if (checkMfaStatus())
         {
-            std::filesystem::rename(
-                std::format(secretKeyTempPath, getUserName()),
-                std::format(secretKeyPath, getUserName()));
-            return true;
+            try
+            {
+                std::filesystem::rename(
+                    std::format(secretKeyTempPath, getUserName()),
+                    std::format(secretKeyPath, getUserName()));
+            }
+            catch (const std::filesystem::filesystem_error& e)
+            {
+                lg2::error("Failed to rename file: {CODE}", "CODE", e);
+                return false;
+            }
         }
-        catch (const std::filesystem::filesystem_error& e)
-        {
-            lg2::error("Failed to rename file: {CODE}", "CODE", e);
-        }
+        return true;
     }
     return false;
 }
@@ -349,35 +350,6 @@ void Users::clearSecretKey()
         throw UnsupportedRequest();
     }
     clearGoogleAuthenticator(*this);
-}
-
-void Users::load(DbusSerializer& ts)
-{
-    if (userName == "service")
-    {
-        loadServiceUser(ts);
-        return;
-    }
-    std::optional<std::string> protocol;
-    std::string path = std::format("{}/bypassedprotocol", userName);
-    ts.deserialize(path, protocol);
-    if (protocol)
-    {
-        MultiFactorAuthType type =
-            MultiFactorAuthConfiguration::convertTypeFromString(*protocol);
-        bypassedProtocol(type, true);
-        return;
-    }
-    bypassedProtocol(MultiFactorAuthType::None, true);
-    ts.serialize(path, MultiFactorAuthConfiguration::convertTypeToString(
-                           MultiFactorAuthType::None));
-}
-void Users::loadServiceUser(DbusSerializer& ts)
-{
-    std::string path = std::format("{}/bypassedprotocol", userName);
-    bypassedProtocol(MultiFactorAuthType::GoogleAuthenticator, true);
-    ts.serialize(path, MultiFactorAuthConfiguration::convertTypeToString(
-                           MultiFactorAuthType::GoogleAuthenticator));
 }
 
 } // namespace user

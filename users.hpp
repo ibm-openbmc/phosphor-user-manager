@@ -36,8 +36,6 @@ using Interfaces = sdbusplus::server::object_t<UsersIface, DeleteIface,
                                                TOTPAuthenticatorIface>;
 using MultiFactorAuthType = sdbusplus::common::xyz::openbmc_project::user::
     MultiFactorAuthConfiguration::Type;
-using MultiFactorAuthConfiguration =
-    sdbusplus::common::xyz::openbmc_project::user::MultiFactorAuthConfiguration;
 // Place where all user objects has to be created
 constexpr auto usersObjPath = "/xyz/openbmc_project/user";
 
@@ -143,11 +141,9 @@ class Users : public Interfaces
     MultiFactorAuthType bypassedProtocol(MultiFactorAuthType value,
                                          bool skipSignal) override;
     void enableMultiFactorAuth(MultiFactorAuthType type, bool value);
-    void load(DbusSerializer& serializer);
 
   private:
     bool checkMfaStatus() const;
-    void loadServiceUser(DbusSerializer& ts);
     std::string userName;
     UserMgr& manager;
 };
