@@ -138,7 +138,7 @@ class Users : public Interfaces
     bool secretKeyIsValid() const override;
     std::string createSecretKey() override;
     bool verifyOTP(std::string otp) override;
-    bool isGenerateSecretKeyRequired();
+    bool isGenerateSecretKeyRequired() override;
     MultiFactorAuthType bypassedProtocol(MultiFactorAuthType value,
                                          bool skipSignal) override;
     void enableMultiFactorAuth(MultiFactorAuthType type, bool value);
