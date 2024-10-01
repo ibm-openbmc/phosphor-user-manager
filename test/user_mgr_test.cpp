@@ -25,7 +25,7 @@ using InternalFailure =
     sdbusplus::xyz::openbmc_project::Common::Error::InternalFailure;
 using UserNameDoesNotExist =
     sdbusplus::xyz::openbmc_project::User::Common::Error::UserNameDoesNotExist;
-
+auto confPath = "/tmp/usr_mgr.conf";
 class TestUserMgr : public testing::Test
 {
   public:
@@ -34,7 +34,8 @@ class TestUserMgr : public testing::Test
     MockManager mockManager;
 
     TestUserMgr() :
-        bus(sdbusplus::get_mocked_new(&sdBusMock)), mockManager(bus, objpath)
+        bus(sdbusplus::get_mocked_new(&sdBusMock)),
+        mockManager(bus, objpath, confPath)
     {}
 
     void createLocalUser(const std::string& userName,
@@ -252,7 +253,7 @@ void removeFile(const std::string& filePath)
 class UserMgrInTest : public testing::Test, public UserMgr
 {
   public:
-    UserMgrInTest() : UserMgr(busInTest, objectRootInTest)
+    UserMgrInTest() : UserMgr(busInTest, objectRootInTest, confPath)
     {
         tempFaillockConfigFile = "/tmp/test-data-XXXXXX";
         mktemp(tempFaillockConfigFile.data());

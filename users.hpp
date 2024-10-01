@@ -14,7 +14,8 @@
 // limitations under the License.
 */
 #pragma once
-#include "dbus_serializer.hpp"
+
+#include "json_serializer.hpp"
 
 #include <sdbusplus/bus.hpp>
 #include <sdbusplus/server/object.hpp>
@@ -50,7 +51,7 @@ class Users : public Interfaces
 {
   public:
     Users() = delete;
-    ~Users() = default;
+    ~Users();
     Users(const Users&) = delete;
     Users& operator=(const Users&) = delete;
     Users(Users&&) = delete;
@@ -122,7 +123,8 @@ class Users : public Interfaces
 
     /** @brief unlock user locked state for failed attempt
      *
-     * @param[in]: value - false - unlock user account, true - no action taken
+     * @param[in]: value - false - unlock user account, true - no action
+     *taken
      **/
     bool userLockedForFailedAttempt(bool value) override;
 
@@ -143,11 +145,11 @@ class Users : public Interfaces
     MultiFactorAuthType bypassedProtocol(MultiFactorAuthType value,
                                          bool skipSignal) override;
     void enableMultiFactorAuth(MultiFactorAuthType type, bool value);
-    void load(DbusSerializer& serializer);
+    void load(JsonSerializer& serializer);
 
   private:
     bool checkMfaStatus() const;
-    void loadServiceUser(DbusSerializer& ts);
+    void loadServiceUser(JsonSerializer& ts);
     std::string userName;
     UserMgr& manager;
 };

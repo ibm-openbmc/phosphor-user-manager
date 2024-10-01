@@ -14,7 +14,8 @@
 // limitations under the License.
 */
 #pragma once
-#include "dbus_serializer.hpp"
+
+#include "json_serializer.hpp"
 #include "users.hpp"
 
 #include <boost/process/child.hpp>
@@ -137,13 +138,14 @@ class UserMgr : public Ifaces
      *  @param[in] bus  - sdbusplus handler
      *  @param[in] path - D-Bus path
      */
-    UserMgr(sdbusplus::bus_t& bus, const char* path);
+    UserMgr(sdbusplus::bus_t& bus, const char* path, const char* confPath);
 
     /** @brief create user method.
      *  This method creates a new user as requested
      *
      *  @param[in] userName - Name of the user which has to be created
-     *  @param[in] groupNames - Group names list, to which user has to be added.
+     *  @param[in] groupNames - Group names list, to which user has to be
+     * added.
      *  @param[in] priv - Privilege of the user.
      *  @param[in] enabled - State of the user enabled / disabled.
      */
@@ -154,7 +156,8 @@ class UserMgr : public Ifaces
      *  This method renames the user as requested
      *
      *  @param[in] userName - current name of the user
-     *  @param[in] newUserName - new user name to which it has to be renamed.
+     *  @param[in] newUserName - new user name to which it has to be
+     * renamed.
      */
     void renameUser(std::string userName, std::string newUserName) override;
 
@@ -239,7 +242,8 @@ class UserMgr : public Ifaces
     /** @brief lists user locked state for failed attempt
      *
      * @param[in]: user name
-     * @param[in]: value - false -unlock user account, true - no action taken
+     * @param[in]: value - false -unlock user account, true - no action
+     *taken
      **/
     bool userLockedForFailedAttempt(const std::string& userName,
                                     const bool& value);
@@ -254,8 +258,8 @@ class UserMgr : public Ifaces
     /** @brief returns user info
      * Checks if user is local user, then returns map of properties of user.
      * like user privilege, list of user groups, user enabled state and user
-     * locked state. If its not local user, then it checks if its a ldap user,
-     * then it gets the privilege mapping of the LDAP group.
+     * locked state. If its not local user, then it checks if its a ldap
+     *user, then it gets the privilege mapping of the LDAP group.
      *
      * @param[in] - user name
      * @return -  map of user properties
@@ -281,12 +285,17 @@ class UserMgr : public Ifaces
     bool isGenerateSecretKeyRequired(std::string userName) override;
     static std::vector<std::string> readAllGroupsOnSystem();
     void load();
+    JsonSerializer& getSerializer()
+    {
+        return serializer;
+    }
 
   protected:
     /** @brief get pam argument value
      *  method to get argument value from pam configuration
      *
-     *  @param[in] moduleName - name of the module from where arg has to be read
+     *  @param[in] moduleName - name of the module from where arg has to be
+     * read
      *  @param[in] argName - argument name
      *  @param[out] argValue - argument value
      *
@@ -298,8 +307,8 @@ class UserMgr : public Ifaces
     /** @brief get pam argument value
      *  method to get argument value from pam configuration
      *
-     *  @param[in] confFile - path of the module config file from where arg has
-     * to be read
+     *  @param[in] confFile - path of the module config file from where arg
+     * has to be read
      *  @param[in] argName - argument name
      *  @param[out] argValue - argument value
      *
@@ -312,8 +321,8 @@ class UserMgr : public Ifaces
     /** @brief set pam argument value
      *  method to set argument value in pam configuration
      *
-     *  @param[in] moduleName - name of the module in which argument value has
-     * to be set
+     *  @param[in] moduleName - name of the module in which argument value
+     * has to be set
      *  @param[in] argName - argument name
      *  @param[out] argValue - argument value
      *
@@ -326,8 +335,8 @@ class UserMgr : public Ifaces
     /** @brief set pam argument value
      *  method to set argument value in pam configuration
      *
-     *  @param[in] confFile - path of the module config file in which argument
-     * value has to be set
+     *  @param[in] confFile - path of the module config file in which
+     * argument value has to be set
      *  @param[in] argName - argument name
      *  @param[out] argValue - argument value
      *
@@ -467,8 +476,8 @@ class UserMgr : public Ifaces
     std::vector<std::string> groupsMgr;
 
     /** @brief map container to hold users object */
-    using UserName = std::string;
-    std::unordered_map<UserName, std::unique_ptr<phosphor::user::Users>>
+
+    std::unordered_map<std::string, std::unique_ptr<phosphor::user::Users>>
         usersList;
 
     /** @brief get users in group
@@ -520,8 +529,6 @@ class UserMgr : public Ifaces
                                const std::string& groupName) const;
 
   protected:
-    void addToWatch(const std::string& userName);
-    void addWatchForPersistency();
     /** @brief get privilege mapper object
      *  method to get dbus privilege mapper object
      *
@@ -534,8 +541,7 @@ class UserMgr : public Ifaces
     std::string faillockConfigFile;
     std::string pwHistoryConfigFile;
     std::string pwQualityConfigFile;
-    DbusSerializer serializer;
-    std::unique_ptr<sdbusplus::bus::match::match> serializablePropMatch;
+    JsonSerializer serializer;
 };
 
 } // namespace user
