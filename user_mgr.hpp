@@ -275,6 +275,7 @@ class UserMgr : public Ifaces
                                 bool skipSignal) override;
 
     static std::vector<std::string> readAllGroupsOnSystem();
+    void load();
 
   protected:
     /** @brief get pam argument value
@@ -514,8 +515,8 @@ class UserMgr : public Ifaces
                                const std::string& groupName) const;
 
   protected:
-    void load();
     void addToWatch(const std::string& userName);
+    void addWatchForPersistency();
     /** @brief get privilege mapper object
      *  method to get dbus privilege mapper object
      *

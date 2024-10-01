@@ -107,7 +107,7 @@ using GroupNameDoesNotExists =
 
 namespace
 {
-constexpr std::string_view mfaConfPath = "/var/lib/mfa-conf/usr_mgr.conf";
+constexpr std::string_view mfaConfPath = "/var/lib/usr_mgr.conf";
 // The hardcoded groups in OpenBMC projects
 constexpr std::array<const char*, 5> predefinedGroups = {
     "web", "redfish", "ipmi", "ssh", "hostconsole"};
@@ -974,8 +974,7 @@ bool UserMgr::userPasswordExpired(const std::string& userName)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 
-    struct spwd spwd
-    {};
+    struct spwd spwd{};
     struct spwd* spwdPtr = nullptr;
     auto buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (buflen < -1)
@@ -1604,20 +1603,8 @@ void UserMgr::load()
     }
     serializer.store();
 }
-UserMgr::UserMgr(sdbusplus::bus_t& bus, const char* path) :
-    Ifaces(bus, path, Ifaces::action::defer_emit), bus(bus), path(path),
-    faillockConfigFile(defaultFaillockConfigFile),
-    pwHistoryConfigFile(defaultPWHistoryConfigFile),
-    pwQualityConfigFile(defaultPWQualityConfigFile),
-    serializer(mfaConfPath.data())
+void UserMgr::addWatchForPersistency()
 {
-    UserMgrIface::allPrivileges(privMgr);
-    groupsMgr = readAllGroupsOnSystem();
-    std::sort(groupsMgr.begin(), groupsMgr.end());
-    UserMgrIface::allGroups(groupsMgr);
-    initializeAccountPolicy();
-    initUserObjects();
-
     serializer.addPropertyMatch(
         bus, "/xyz/openbmc_project/user",
         "xyz.openbmc_project.User.MultiFactorAuthConfiguration", "Enabled",
@@ -1641,6 +1628,21 @@ UserMgr::UserMgr(sdbusplus::bus_t& bus, const char* path) :
             }
             addToWatch(user);
         });
+}
+UserMgr::UserMgr(sdbusplus::bus_t& bus, const char* path) :
+    Ifaces(bus, path, Ifaces::action::defer_emit), bus(bus), path(path),
+    faillockConfigFile(defaultFaillockConfigFile),
+    pwHistoryConfigFile(defaultPWHistoryConfigFile),
+    pwQualityConfigFile(defaultPWQualityConfigFile),
+    serializer(mfaConfPath.data())
+{
+    UserMgrIface::allPrivileges(privMgr);
+    groupsMgr = readAllGroupsOnSystem();
+    std::sort(groupsMgr.begin(), groupsMgr.end());
+    UserMgrIface::allGroups(groupsMgr);
+    initializeAccountPolicy();
+    initUserObjects();
+    addWatchForPersistency();
     // emit the signal
     this->emit_object_added();
 }
