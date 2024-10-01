@@ -320,6 +320,10 @@ MultiFactorAuthType
     {
         iter->second(*this);
     }
+    std::string path = std::format("{}/bypassedprotocol", getUserName());
+    manager.getSerializer().serialize(
+        path, MultiFactorAuthConfiguration::convertTypeToString(value));
+    manager.getSerializer().store();
     return Interfaces::bypassedProtocol(value, skipSignal);
 }
 
