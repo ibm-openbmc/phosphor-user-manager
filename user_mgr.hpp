@@ -266,9 +266,12 @@ class UserMgr : public Ifaces
     void createGroup(std::string groupName) override;
 
     void deleteGroup(std::string groupName) override;
-
-    virtual MultiFactorAuthType enabled(MultiFactorAuthType value,
-                                        bool skipSignal) override;
+    MultiFactorAuthType enabled() const override
+    {
+        return MultiFactorAuthConfigurationIface::enabled();
+    }
+    MultiFactorAuthType enabled(MultiFactorAuthType value,
+                                bool skipSignal) override;
 
     static std::vector<std::string> readAllGroupsOnSystem();
 
