@@ -1564,7 +1564,6 @@ void UserMgr::initUserObjects(void)
             addToWatch(user);
         }
     }
-    load();
 }
 void UserMgr::addToWatch(const std::string& userName)
 {
