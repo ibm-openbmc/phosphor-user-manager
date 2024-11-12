@@ -374,9 +374,11 @@ void Users::load(DbusSerializer& ts)
         bypassedProtocol(type, true);
         return;
     }
-    bypassedProtocol(MultiFactorAuthType::None, true);
-    ts.serialize(path, MultiFactorAuthConfiguration::convertTypeToString(
-                           MultiFactorAuthType::None));
+    auto type = (getUserName() == "service")
+                    ? MultiFactorAuthType::GoogleAuthenticator
+                    : MultiFactorAuthType::None;
+    bypassedProtocol(type, true);
+    ts.serialize(path, MultiFactorAuthConfiguration::convertTypeToString(type));
 }
 
 } // namespace user
