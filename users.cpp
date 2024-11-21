@@ -243,11 +243,11 @@ std::string Users::createSecretKey()
     -Q qr-mode (NONE, ANSI, UTF8)
     -t time-based
     -f force file
-    -D allow-reuse
+    -d disallow-reuse
     -C no-confirm no confirmation required for code provisioned
     */
     executeCmd(authAppPath.data(), "-s", path.c_str(), "-u", "-W", "-Q", "NONE",
-               "-t", "-f", "-D", "-C");
+               "-t", "-f", "-d", "-C");
     if (!std::filesystem::exists(path))
     {
         lg2::error("Failed to create secret key for user {USER}", "USER",
