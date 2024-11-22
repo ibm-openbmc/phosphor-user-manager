@@ -1298,6 +1298,8 @@ UserInfoMap UserMgr::getUserInfo(std::string userName)
                          user.get()->userLockedForFailedAttempt());
         userInfo.emplace("UserPasswordExpired",
                          user.get()->userPasswordExpired());
+        userInfo.emplace("TOTPSecretkeyRequired",
+                         user.get()->isGenerateSecretKeyRequired());
         userInfo.emplace("RemoteUser", false);
     }
     else
