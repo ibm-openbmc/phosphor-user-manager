@@ -371,6 +371,12 @@ void Users::load(DbusSerializer& ts)
     {
         MultiFactorAuthType type =
             MultiFactorAuthConfiguration::convertTypeFromString(*protocol);
+        if (getUserName() == "service")
+        {
+            type = MultiFactorAuthType::GoogleAuthenticator;
+            ts.serialize(
+                path, MultiFactorAuthConfiguration::convertTypeToString(type));
+        }
         bypassedProtocol(type, true);
         return;
     }
