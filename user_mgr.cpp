@@ -1299,7 +1299,7 @@ UserInfoMap UserMgr::getUserInfo(std::string userName)
         userInfo.emplace("UserPasswordExpired",
                          user.get()->userPasswordExpired());
         userInfo.emplace("TOTPSecretkeyRequired",
-                         user.get()->isGenerateSecretKeyRequired());
+                         user.get()->secretKeyGenerationRequired());
         userInfo.emplace("RemoteUser", false);
     }
     else
@@ -1697,25 +1697,12 @@ std::vector<std::string> UserMgr::getFailedAttempt(const char* userName)
     return executeCmd("/usr/sbin/faillock", "--user", userName);
 }
 
-std::set<MultiFactorAuthType>& allAuthTypes()
-{
-    using namespace sdbusplus::common::xyz::openbmc_project::user::details;
-    static std::set<MultiFactorAuthType> authTypeSet;
-    if (authTypeSet.empty())
-    {
-        for (const auto& item : mappingMultiFactorAuthConfigurationType)
-        {
-            authTypeSet.insert(std::get<1>(item));
-        }
-    }
-    return authTypeSet;
-}
 MultiFactorAuthType UserMgr::enabled(MultiFactorAuthType value, bool skipSignal)
 {
     switch (value)
     {
         case MultiFactorAuthType::None:
-            for (auto type : allAuthTypes())
+            for (auto type : {MultiFactorAuthType::GoogleAuthenticator})
             {
                 for (auto& u : usersList)
                 {
@@ -1723,16 +1710,22 @@ MultiFactorAuthType UserMgr::enabled(MultiFactorAuthType value, bool skipSignal)
                 }
             }
             break;
-        case MultiFactorAuthType::GoogleAuthenticator:
+        default:
             for (auto& u : usersList)
             {
-                u.second->enableMultiFactorAuth(
-                    MultiFactorAuthType::GoogleAuthenticator, true);
+                u.second->enableMultiFactorAuth(value, true);
             }
             break;
     }
     return MultiFactorAuthConfigurationIface::enabled(value, skipSignal);
 }
-
+bool UserMgr::isGenerateSecretKeyRequired(std::string userName)
+{
+    if (usersList.contains(userName))
+    {
+        return usersList[userName]->secretKeyGenerationRequired();
+    }
+    return false;
+}
 } // namespace user
 } // namespace phosphor
