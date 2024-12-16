@@ -147,6 +147,7 @@ class Users : public Interfaces
 
   private:
     bool checkMfaStatus() const;
+    void loadServiceUser(DbusSerializer& ts);
     std::string userName;
     UserMgr& manager;
 };
