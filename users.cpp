@@ -286,20 +286,27 @@ bool Users::verifyOTP(std::string otp)
                 return false;
             }
         }
+        else
+        {
+            std::filesystem::remove(
+                std::format(secretKeyTempPath, getUserName()));
+        }
         return true;
     }
     return false;
 }
-
-static void clearGoogleAuthenticator(Users& thisp)
+static void clearSecretFile(const std::string& path)
 {
-    std::string path = std::format(secretKeyPath, thisp.getUserName());
-
     if (std::filesystem::exists(path))
     {
         std::filesystem::remove(path);
     }
-};
+}
+static void clearGoogleAuthenticator(Users& thisp)
+{
+    clearSecretFile(std::format(secretKeyPath, thisp.getUserName()));
+    clearSecretFile(std::format(secretKeyTempPath, thisp.getUserName()));
+}
 static std::map<MultiFactorAuthType, std::function<void(Users&)>>
     mfaBypassHandlers{{MultiFactorAuthType::GoogleAuthenticator,
                        clearGoogleAuthenticator},
@@ -326,12 +333,9 @@ bool Users::secretKeyIsValid() const
     return std::filesystem::exists(path);
 }
 
-inline void googleAuthenticatorEnabled(Users& user, bool value)
+inline void googleAuthenticatorEnabled(Users& user, bool /*unused*/)
 {
-    if (!value)
-    {
-        clearGoogleAuthenticator(user);
-    }
+    clearGoogleAuthenticator(user);
 }
 static std::map<MultiFactorAuthType, std::function<void(Users&, bool)>>
     mfaEnableHandlers{{MultiFactorAuthType::GoogleAuthenticator,

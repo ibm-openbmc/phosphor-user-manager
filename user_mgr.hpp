@@ -463,6 +463,8 @@ class UserMgr : public Ifaces
     /** @brief object path */
     const std::string path;
 
+    /** @brief serializer for mfa */
+    JsonSerializer serializer;
     /** @brief privilege manager container */
     const std::vector<std::string> privMgr = {
         "priv-admin", "priv-operator", "priv-user", "priv-oemibmserviceagent"};
@@ -538,7 +540,6 @@ class UserMgr : public Ifaces
     std::string faillockConfigFile;
     std::string pwHistoryConfigFile;
     std::string pwQualityConfigFile;
-    JsonSerializer serializer;
 };
 
 } // namespace user

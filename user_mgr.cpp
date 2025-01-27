@@ -107,7 +107,7 @@ using GroupNameDoesNotExists =
 
 namespace
 {
-constexpr std::string_view mfaConfPath = "/var/lib/usr_mgr.conf";
+constexpr auto mfaConfPath = "/var/lib/usr_mgr.conf";
 // The hardcoded groups in OpenBMC projects
 constexpr std::array<const char*, 5> predefinedGroups = {
     "web", "redfish", "ipmi", "ssh", "hostconsole"};
@@ -974,8 +974,7 @@ bool UserMgr::userPasswordExpired(const std::string& userName)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
 
-    struct spwd spwd
-    {};
+    struct spwd spwd{};
     struct spwd* spwdPtr = nullptr;
     auto buflen = sysconf(_SC_GETPW_R_SIZE_MAX);
     if (buflen < -1)
@@ -1583,10 +1582,10 @@ void UserMgr::load()
 
 UserMgr::UserMgr(sdbusplus::bus_t& bus, const char* path) :
     Ifaces(bus, path, Ifaces::action::defer_emit), bus(bus), path(path),
-    faillockConfigFile(defaultFaillockConfigFile),
+    serializer(mfaConfPath), faillockConfigFile(defaultFaillockConfigFile),
     pwHistoryConfigFile(defaultPWHistoryConfigFile),
-    pwQualityConfigFile(defaultPWQualityConfigFile),
-    serializer(mfaConfPath.data())
+    pwQualityConfigFile(defaultPWQualityConfigFile)
+
 {
     UserMgrIface::allPrivileges(privMgr);
     groupsMgr = readAllGroupsOnSystem();
@@ -1652,6 +1651,10 @@ std::vector<std::string> UserMgr::getFailedAttempt(const char* userName)
 
 MultiFactorAuthType UserMgr::enabled(MultiFactorAuthType value, bool skipSignal)
 {
+    if (value == enabled())
+    {
+        return value;
+    }
     switch (value)
     {
         case MultiFactorAuthType::None:
