@@ -338,11 +338,38 @@ std::vector<std::string> UserMgr::readAllGroupsOnSystem()
     return allGroups;
 }
 
+/* Notes for restricted priv-operator role:
+ *
+ * The priv-operator role is restricted so you cannot create an operator user
+ * or change an existing user to have the operator role.  However, if there
+ * happens to be a user with the operator role, you are allowed to rename or
+ * delete that user, or change them away from the operator role.
+ */
+void UserMgr::throwForRestrictedPrivilegeRole(const std::string& priv)
+{
+    if ((priv == "priv-oemibmserviceagent") || (priv == "priv-operator"))
+    {
+        log<level::ERR>("Restricted role");
+        elog<InternalFailure>();
+    }
+}
+
+void UserMgr::throwForRestrictedUserPrivilegeRole(const std::string& userName)
+{
+    const std::string priv = usersList[userName].get()->userPrivilege();
+    if (priv == "priv-oemibmserviceagent")
+    {
+        log<level::ERR>("User has restricted role");
+        elog<InternalFailure>();
+    }
+}
+
 void UserMgr::createUser(std::string userName,
                          std::vector<std::string> groupNames, std::string priv,
                          bool enabled)
 {
     throwForInvalidPrivilege(priv);
+    throwForRestrictedPrivilegeRole(priv);
     throwForInvalidGroups(groupNames);
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
@@ -351,7 +378,55 @@ void UserMgr::createUser(std::string userName,
     throwForMaxGrpUserCount(groupNames);
 
     std::string groups = getCSVFromVector(groupNames);
+
+    // The "ssh" phosphor-privilege group controls access to the host console
+    // via SSH port 2200 and has a special implementation.
+    // In the OpenBMC community project:
+    //   A. It allows access to the BMC's SSH interfaces
+    //       - SSH port 22 reaches the BMC's command shell.
+    //       - SSH port 2200 reaches the host console.
+    //   B. It is enforced by two mechanisms:
+    //       1. The SSH dropbear server command uses the -G priv-admin argument
+    //          to restrict SSH access to users who are in the priv-admin Linux
+    //          group.
+    //       2. The Linux user's login shell was set to /bin/sh (when "ssh" was
+    //          specified) or /bin/nologin (when "ssh" is not specified).
+    //          Having loginShell=/bin/sh is required to be able to get in
+    //          through the SSH interface.  The condition (loginShell==/bin/sh)
+    //          is equivalent to being in the "ssh" privilege-group.
+    //       Note there is no "ssh" Linux group.
+    // For p10bmc:
+    //   A. Additionally:
+    //       - SSH port 2201 to reaches the hypervisor console (PHYP).
+    //   B. We created three new Linux groups to control access to the SSH
+    //         destinations:
+    //       - SSH port 22 is controlled by membership in "shellaccess".
+    //         Only the special service user should be in this group.
+    //         (This was called bmcshellaccess in previous releases.)
+    //       - SSH port 2200 is controlled by membership in "hostconsole"
+    //         All users (including the service user) should be in this group.
+    //         (This was called hostconsoleaccess before P11.)
+    //       - SSH port 2201 is controlled by membership in the
+    //         "hypervisorconsoleaccess" group.
+    //         Only the special service user should be in this group.
+    //   The special handling in this code when the user is in the "ssh" group
+    //   (represented here as sshRequested):
+    //    1. Add the user to the hostconsoleaccess Linux group.
+    //    2. Set the user's login shell (as /bin/sh).
+    //   Note: No special code is needed to handle the special "service" user
+    //         because priv-oemibmserviceagent is a restricted role which means
+    //         the service agent's groups cannot be changed.
+    //   It remains up the BMC administrator to give "ssh" access to whichever
+    //   users they want (for example, to admin users).
     bool sshRequested = removeStringFromCSV(groups, grpSsh);
+    if (sshRequested)
+    {
+        if (groups.size() != 0)
+        {
+            groups += ",";
+        }
+        groups += "hostconsole";
+    }
 
     // treat privilege as a group - This is to avoid using different file to
     // store the same.
@@ -392,6 +467,7 @@ void UserMgr::deleteUser(std::string userName)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    throwForRestrictedUserPrivilegeRole(userName);
     try
     {
         // Clear user fail records
@@ -481,6 +557,7 @@ void UserMgr::renameUser(std::string userName, std::string newUserName)
     throwForUserExists(newUserName);
     throwForUserNameConstraints(newUserName,
                                 usersList[userName].get()->userGroups());
+    throwForRestrictedUserPrivilegeRole(userName);
     try
     {
         executeUserRename(userName.c_str(), newUserName.c_str());
@@ -514,10 +591,12 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
                                   const std::string& priv)
 {
     throwForInvalidPrivilege(priv);
+    throwForRestrictedPrivilegeRole(priv);
     throwForInvalidGroups(groupNames);
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    throwForRestrictedUserPrivilegeRole(userName);
     const std::vector<std::string>& oldGroupNames =
         usersList[userName].get()->userGroups();
     std::vector<std::string> groupDiff;
@@ -533,7 +612,16 @@ void UserMgr::updateGroupsAndPriv(const std::string& userName,
     }
 
     std::string groups = getCSVFromVector(groupNames);
+    // The "ssh" phosphor privilege group is handled specially
     bool sshRequested = removeStringFromCSV(groups, grpSsh);
+    if (sshRequested)
+    {
+        if (groups.size() != 0)
+        {
+            groups += ",";
+        }
+        groups += "hostconsole";
+    }
 
     // treat privilege as a group - This is to avoid using different file to
     // store the same.
@@ -745,6 +833,7 @@ void UserMgr::userEnable(const std::string& userName, bool enabled)
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
     throwForUserDoesNotExist(userName);
+    // Note: Allowed to enable and disable users with restricted role
     try
     {
         executeUserModifyUserEnable(userName.c_str(), enabled);
@@ -860,6 +949,7 @@ bool UserMgr::userLockedForFailedAttempt(const std::string& userName,
 {
     // All user management lock has to be based on /etc/shadow
     // TODO  phosphor-user-manager#10 phosphor::user::shadow::Lock lock{};
+    // Note: Allowed to unlock password of users with restricted role
     if (value == true)
     {
         return userLockedForFailedAttempt(userName);
