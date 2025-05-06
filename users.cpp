@@ -371,6 +371,11 @@ void Users::clearSecretKey()
 
 void Users::load(JsonSerializer& ts)
 {
+    if (userName == "service")
+    {
+        loadServiceUser(ts);
+        return;
+    }
     std::optional<std::string> protocol;
     std::string path = std::format("{}/bypassedprotocol", userName);
     ts.deserialize(path, protocol);
@@ -384,6 +389,13 @@ void Users::load(JsonSerializer& ts)
     bypassedProtocol(MultiFactorAuthType::None, true);
     ts.serialize(path, MultiFactorAuthConfiguration::convertTypeToString(
                            MultiFactorAuthType::None));
+}
+void Users::loadServiceUser(JsonSerializer& ts)
+{
+    std::string path = std::format("{}/bypassedprotocol", userName);
+    bypassedProtocol(MultiFactorAuthType::GoogleAuthenticator, true);
+    ts.serialize(path, MultiFactorAuthConfiguration::convertTypeToString(
+                           MultiFactorAuthType::GoogleAuthenticator));
 }
 
 } // namespace user
