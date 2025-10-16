@@ -22,6 +22,17 @@ namespace fs = std::experimental::filesystem;
  */
 fs::path serialize(const LDAPMapperEntry& entry, Id id, const fs::path& dir);
 
+/** @brief Serialize and persist LDAP Manager  D-Bus object
+*
+*  @param[in] mgr - LDAP Manager
+*  @param[in] dir - pathname of directory where the serialized privilege
+*                   manager settings  are stored
+*
+*
+ *  @return none
+ */
+void serializeManager(const LDAPMapperMgr& mgr, const fs::path& dir);
+
 /** @brief Deserialize a persisted LDAP privilege mapper into a D-Bus object
  *
  *  @param[in] path - pathname of persisted file
@@ -31,6 +42,17 @@ fs::path serialize(const LDAPMapperEntry& entry, Id id, const fs::path& dir);
  *  @return bool - true if the deserialization was successful, false otherwise.
  */
 bool deserialize(const fs::path& path, LDAPMapperEntry& entry);
+
+/** @brief Deserialize a persisted LDAP Manager into a D-Bus object
+*
+*  @param[in] path - pathname of persisted file
+*  @param[in/out] entry - reference to  LDAP Manager entry
+*                         which is the target of deserialization.
+*
+*  @return bool - true if the deserialization was successful, false otherwise.
+*/
+
+bool deserializeManager(const fs::path& path, LDAPMapperMgr& mgr);
 
 } // namespace user
 } // namespace phosphor

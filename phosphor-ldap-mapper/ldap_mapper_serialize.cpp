@@ -4,7 +4,7 @@
 #include <phosphor-logging/log.hpp>
 #include "config.h"
 #include "ldap_mapper_serialize.hpp"
-
+#include "ldap_mapper_mgr.hpp"
 // Register class version
 // From cereal documentation;
 // "This macro should be placed at global scope"
@@ -54,6 +54,20 @@ void load(Archive& archive, LDAPMapperEntry& entry, const std::uint32_t version)
         privilege(privilege, true);
 }
 
+template <class Archive>
+void save(Archive& archive, const  LDAPMapperMgr& mgr, const std::uint32_t version)
+{
+    archive(mgr.allowReadOnlyAccessToAllLDAPUsers());
+}
+
+template <class Archive>
+void load(Archive& archive, LDAPMapperMgr& mgr, const std::uint32_t version)
+{
+    bool flag = true;
+    archive(flag);
+    mgr.allowReadOnlyAccessToAllLDAPUsers(flag);
+}
+
 fs::path serialize(const LDAPMapperEntry& entry, Id id, const fs::path& dir)
 {
     auto path = dir / std::to_string(id);
@@ -63,6 +77,12 @@ fs::path serialize(const LDAPMapperEntry& entry, Id id, const fs::path& dir)
     return path;
 }
 
+void serializeManager(const LDAPMapperMgr& mgr, const fs::path& dir)
+{
+    std::ofstream os(dir.c_str(), std::ios::binary);
+    cereal::BinaryOutputArchive oarchive(os);
+    oarchive(mgr);
+}
 bool deserialize(const fs::path& path, LDAPMapperEntry& entry)
 {
     try
@@ -90,5 +110,31 @@ bool deserialize(const fs::path& path, LDAPMapperEntry& entry)
     }
 }
 
+bool deserializeManager(const fs::path& path, LDAPMapperMgr& mgr)
+{
+    try
+    {
+        if (fs::exists(path))
+        {
+            std::ifstream is(path.c_str(), std::ios::in | std::ios::binary);
+            cereal::BinaryInputArchive iarchive(is);
+            iarchive(mgr);
+            return true;
+        }
+        return false;
+    }
+    catch (cereal::Exception& e)
+    {
+        log<level::ERR>(e.what());
+        fs::remove(path);
+        return false;
+    }
+    catch (const std::length_error& e)
+    {
+        log<level::ERR>(e.what());
+        fs::remove(path);
+        return false;
+    }
+}
 } // namespace user
 } // namespace phosphor
