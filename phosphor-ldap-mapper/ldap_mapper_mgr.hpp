@@ -61,6 +61,10 @@ class LDAPMapperMgr : public MapperMgrIface
      *  @param[in] groupName - name of the LDAP group for which privilege
      *                         mapping is to be deleted.
      */
+
+    bool allowReadOnlyAccessToAllLDAPUsers(bool value) override;
+
+    bool allowReadOnlyAccessToAllLDAPUsers() const override;
     void deletePrivilegeMapper(Id id);
 
     /** @brief Check if LDAP group privilege mapping requested is valid
@@ -90,7 +94,7 @@ class LDAPMapperMgr : public MapperMgrIface
   private:
     /** @brief sdbusplus handler */
     sdbusplus::bus::bus &bus;
-
+    bool allowReadOnlyAccessToAllLDAPUsersFlag;
     /** @brief object path for the manager object*/
     const std::string path;
 

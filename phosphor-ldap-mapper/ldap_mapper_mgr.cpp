@@ -108,6 +108,8 @@ void LDAPMapperMgr::restore()
     for (auto &file : fs::directory_iterator(dir))
     {
         std::string id = file.path().filename().c_str();
+        if (id == "manager_settings")
+            continue;
         size_t idNum = std::stol(id);
         auto entryPath = std::string(mapperMgrRoot) + '/' + id;
         auto entry = std::make_unique<phosphor::user::LDAPMapperEntry>(
@@ -122,7 +124,32 @@ void LDAPMapperMgr::restore()
             }
         }
     }
+    fs::path mgrFile = fs::path(persistPath) / "manager_settings";
+    if (fs::exists(mgrFile))
+    {
+        if (!deserializeManager(mgrFile, *this))
+        {
+            log<level::ERR>("Failed to restore manager_settings, file may be corrupted.");
+        }
+    }
 }
+
+bool LDAPMapperMgr::allowReadOnlyAccessToAllLDAPUsers() const
+{
+    return allowReadOnlyAccessToAllLDAPUsersFlag;
+}
+
+bool LDAPMapperMgr::allowReadOnlyAccessToAllLDAPUsers(bool value)
+{
+    if (allowReadOnlyAccessToAllLDAPUsersFlag == value)
+        return value;
+
+     allowReadOnlyAccessToAllLDAPUsersFlag = value;
+     fs::path mgrFile = fs::path(persistPath) / "manager_settings";
+     serializeManager(*this, mgrFile);
+     return PrivilegeMapper::allowReadOnlyAccessToAllLDAPUsers(value);
+}
+
 
 } // namespace user
 } // namespace phosphor
