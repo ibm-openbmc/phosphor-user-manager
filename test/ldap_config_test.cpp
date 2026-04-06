@@ -215,7 +215,7 @@ TEST_F(TestLDAPConfig, testRestoresDefault)
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
 
-    EXPECT_CALL(manager, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(manager, stopService("nslcd.service")).Times(3);
     EXPECT_CALL(manager, restartService("nslcd.service")).Times(0);
     EXPECT_CALL(manager, restartService("nscd.service")).Times(0);
 
@@ -247,7 +247,7 @@ TEST_F(TestLDAPConfig, testRestores)
         new MockConfigMgr(bus, LDAP_CONFIG_ROOT, configFilePath.c_str(),
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
     managerPtr->createConfig(
@@ -296,7 +296,7 @@ TEST_F(TestLDAPConfig, testLDAPServerURI)
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
 
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(3);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
 
@@ -345,7 +345,7 @@ TEST_F(TestLDAPConfig, testLDAPBindDN)
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
 
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(3);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
 
@@ -397,7 +397,7 @@ TEST_F(TestLDAPConfig, testLDAPBaseDN)
         new MockConfigMgr(bus, LDAP_CONFIG_ROOT, configFilePath.c_str(),
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(3);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
     managerPtr->createConfig(
@@ -447,7 +447,7 @@ TEST_F(TestLDAPConfig, testSearchScope)
         new MockConfigMgr(bus, LDAP_CONFIG_ROOT, configFilePath.c_str(),
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(3);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
     managerPtr->createConfig(
@@ -485,7 +485,7 @@ TEST_F(TestLDAPConfig, testLDAPType)
         new MockConfigMgr(bus, LDAP_CONFIG_ROOT, configFilePath.c_str(),
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
     managerPtr->createConfig(
@@ -525,7 +525,7 @@ TEST_F(TestLDAPConfig, testsecureLDAPRestore)
         new MockConfigMgr(bus, LDAP_CONFIG_ROOT, configFilePath.c_str(),
                           dbusPersistentFilePath.c_str(),
                           tlsCACertFilePath.c_str(), tlsCertFilePath.c_str());
-    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(1);
+    EXPECT_CALL(*managerPtr, stopService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nslcd.service")).Times(2);
     EXPECT_CALL(*managerPtr, restartService("nscd.service")).Times(1);
     managerPtr->createConfig(

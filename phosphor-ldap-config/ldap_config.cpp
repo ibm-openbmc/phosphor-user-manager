@@ -135,6 +135,13 @@ Config::Config(sdbusplus::bus_t& bus, const char* path, const char* filePath,
     fs::create_directories(configPersistPath);
 
     configPersistPath += "/config";
+    bool loaded = deserialize();
+    if (!loaded)
+    {
+        EnableIface::enabled(false);
+    }
+    parent.startOrStopService(nslcdService, enabled());
+    this->emit_object_added();
 }
 
 void Config::certificateInstalled(sdbusplus::message_t& /*msg*/)
