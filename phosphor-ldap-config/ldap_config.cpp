@@ -144,8 +144,8 @@ void Config::certificateInstalled(sdbusplus::message_t& /*msg*/)
         if (enabled())
         {
             writeConfig();
+            parent.startOrStopService(nslcdService, enabled());
         }
-        parent.startOrStopService(nslcdService, enabled());
     }
     catch (const InternalFailure& e)
     {
@@ -172,8 +172,8 @@ void Config::certificateChanged(sdbusplus::message_t& msg)
                 if (enabled())
                 {
                     writeConfig();
+                    parent.startOrStopService(nslcdService, enabled());
                 }
-                parent.startOrStopService(nslcdService, enabled());
             }
             catch (const InternalFailure& e)
             {
