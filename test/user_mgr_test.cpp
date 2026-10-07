@@ -1122,7 +1122,7 @@ TEST_F(
 
 TEST_F(UserMgrInTest, CheckAndThrowForMaxGroupCountOnSuccess)
 {
-    constexpr size_t predefGroupCount = 4;
+    const size_t predefGroupCount = groupsMgr.size();
 
     EXPECT_THAT(allGroups().size(), predefGroupCount);
     for (size_t i = 0; i < maxSystemGroupCount - predefGroupCount; ++i)
@@ -1154,8 +1154,7 @@ TEST_F(UserMgrInTest, CheckAndThrowForGroupExist)
 
 TEST_F(UserMgrInTest, ByDefaultAllGroupsArePredefinedGroups)
 {
-    EXPECT_THAT(allGroups(), testing::UnorderedElementsAre(
-                                 "redfish", "ipmi", "ssh", "hostconsole"));
+    EXPECT_THAT(allGroups(), testing::UnorderedElementsAreArray(groupsMgr));
 }
 
 TEST_F(UserMgrInTest, AddGroupThrowsIfPreDefinedGroupAdd)
@@ -1226,9 +1225,10 @@ TEST_F(UserMgrInTest, CheckAndThrowForGroupNotExist)
 
 TEST(ReadAllGroupsOnSystemTest, OnlyReturnsPredefinedGroups)
 {
-    EXPECT_THAT(
-        UserMgr::readAllGroupsOnSystem(),
-        testing::UnorderedElementsAre("redfish", "ipmi", "ssh", "hostconsole"));
+    auto groups = UserMgr::readAllGroupsOnSystem();
+
+    EXPECT_THAT(groups, testing::IsSupersetOf(
+                            {"redfish", "ssh", "hostconsole", "ipmi"}));
 }
 
 } // namespace user

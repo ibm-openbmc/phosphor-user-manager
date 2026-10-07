@@ -5,3 +5,9 @@ option(
     description: 'Enable management of the root user',
     value: 'enabled',
 )
+option(
+    'predefined_groups',
+    type: 'array',
+    value: ['redfish', 'ssh', 'hostconsole', 'ipmi'],
+    description: 'Predefined user groups',
+)
