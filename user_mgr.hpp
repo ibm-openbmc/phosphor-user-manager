@@ -17,8 +17,8 @@
 #include "json_serializer.hpp"
 #include "users.hpp"
 
-#include <boost/process/child.hpp>
-#include <boost/process/io.hpp>
+#include <boost/process/v1/child.hpp>
+#include <boost/process/v1/io.hpp>
 #include <phosphor-logging/elog-errors.hpp>
 #include <phosphor-logging/elog.hpp>
 #include <phosphor-logging/lg2.hpp>
@@ -93,9 +93,10 @@ template <typename... ArgTypes>
 std::vector<std::string> executeCmd(const char* path, ArgTypes&&... tArgs)
 {
     std::vector<std::string> stdOutput;
-    boost::process::ipstream stdOutStream;
-    boost::process::child execProg(path, const_cast<char*>(tArgs)...,
-                                   boost::process::std_out > stdOutStream);
+    boost::process::v1::ipstream stdOutStream;
+    boost::process::v1::child execProg(
+        path, const_cast<char*>(tArgs)...,
+        boost::process::v1::std_out > stdOutStream);
     std::string stdOutLine;
 
     while (stdOutStream && std::getline(stdOutStream, stdOutLine) &&
