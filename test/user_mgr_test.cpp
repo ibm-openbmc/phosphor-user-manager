@@ -41,7 +41,7 @@ class TestUserMgr : public testing::Test
                          std::vector<std::string> groupNames,
                          const std::string& priv, bool enabled)
     {
-        sdbusplus::message::object_path tempObjPath(usersObjPath);
+        sdbusplus::object_path tempObjPath(usersObjPath);
         tempObjPath /= userName;
         std::string userObj(tempObjPath);
         if (enabled)
