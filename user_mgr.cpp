@@ -363,59 +363,6 @@ void UserMgr::throwForRestrictedUserPrivilegeRole(const std::string& userName)
     }
 }
 
-void UserMgr::createUser2(
-    std::string userName,
-    std::map<UserMgrIface::UserProperty,
-             std::variant<std::string, std::vector<std::string>, bool, uint64_t>>
-        userProperty)
-{
-    using UserProperty = UserMgrIface::UserProperty;
-
-    std::vector<std::string> groupNames;
-    std::string priv;
-    bool enabled = false;
-    bool hasGroups = false;
-    bool hasPriv = false;
-    bool hasEnabled = false;
-
-    for (const auto& [key, value] : userProperty)
-    {
-        switch (key)
-        {
-            case UserProperty::GroupNames:
-                groupNames = std::get<std::vector<std::string>>(value);
-                hasGroups = true;
-                break;
-            case UserProperty::Privilege:
-                priv = std::get<std::string>(value);
-                hasPriv = true;
-                break;
-            case UserProperty::Enabled:
-                enabled = std::get<bool>(value);
-                hasEnabled = true;
-                break;
-            default:
-                lg2::error("Unsupported CreateUser2 property {PROP}", "PROP",
-                           UserMgrIface::convertUserPropertyToString(key));
-                elog<InvalidArgument>(
-                    Argument::ARGUMENT_NAME("UserProperty"),
-                    Argument::ARGUMENT_VALUE(
-                        UserMgrIface::convertUserPropertyToString(key)
-                            .c_str()));
-        }
-    }
-
-    if (!hasGroups || !hasPriv || !hasEnabled)
-    {
-        lg2::error("Missing mandatory CreateUser2 property");
-        elog<InvalidArgument>(Argument::ARGUMENT_NAME("UserProperty"),
-                              Argument::ARGUMENT_VALUE("Missing"));
-    }
-
-    createUser(std::move(userName), std::move(groupNames), std::move(priv),
-               enabled);
-}
-
 void UserMgr::createUser(std::string userName,
                          std::vector<std::string> groupNames, std::string priv,
                          bool enabled)

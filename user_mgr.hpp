@@ -68,7 +68,7 @@ using UserEnabled = bool;
 using PropertyName = std::string;
 using ServiceEnabled = bool;
 
-using UserInfo = std::variant<Privilege, GroupList, UserEnabled, uint64_t>;
+using UserInfo = std::variant<Privilege, GroupList, UserEnabled>;
 using UserInfoMap = std::map<PropertyName, UserInfo>;
 
 using DbusUserObjPath = sdbusplus::object_path;
@@ -149,20 +149,6 @@ class UserMgr : public Ifaces
      */
     void createUser(std::string userName, std::vector<std::string> groupNames,
                     std::string priv, bool enabled) override;
-
-    /** @brief create user method with a dictionary of user properties.
-     *  Only GroupNames, Privilege and Enabled are supported; password
-     *  expiration related properties are rejected.
-     *
-     *  @param[in] userName - Name of the user which has to be created
-     *  @param[in] userProperty - Dictionary of user properties
-     */
-    void createUser2(
-        std::string userName,
-        std::map<UserMgrIface::UserProperty,
-                 std::variant<std::string, std::vector<std::string>, bool,
-                              uint64_t>>
-            userProperty) override;
 
     /** @brief rename user method.
      *  This method renames the user as requested
